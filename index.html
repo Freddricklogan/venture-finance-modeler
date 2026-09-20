@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Venture Finance Modeler — cap table, SAFEs, waterfall, runway</title>
+<meta name="description" content="Cap table, SAFE and convertible-note conversion, priced-round dilution with a pre-money option pool, exit waterfall with liquidation preferences, and a seeded Monte Carlo runway. Tested finance arithmetic, client-side, sample data.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://freddricklogan.github.io/venture-finance-modeler/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1220'/%3E%3Cpath d='M16 4a12 12 0 1 1-8.5 3.5L16 16z' fill='%2358a6ff'/%3E%3Cpath d='M16 16L7.5 7.5A12 12 0 0 1 16 4z' fill='%233fb950'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Freddrick Logan">
+<meta property="og:title" content="Venture Finance Modeler — cap table, SAFE conversion, waterfall and runway">
+<meta property="og:description" content="Tested finance arithmetic for founders: dilution, conversions, liquidation preferences and a Monte Carlo runway, in the browser.">
+<meta property="og:url" content="https://freddricklogan.github.io/venture-finance-modeler/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Venture Finance Modeler — cap table, SAFE conversion, waterfall and runway">
+<meta name="twitter:description" content="Tested finance arithmetic for founders: dilution, conversions, liquidation preferences and a Monte Carlo runway, in the browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Venture Finance Modeler","description":"Cap table, SAFE and convertible-note conversion, priced-round dilution, exit waterfall and a seeded Monte Carlo runway. Client-side; sample data.","url":"https://freddricklogan.github.io/venture-finance-modeler/","applicationCategory":"FinanceApplication","operatingSystem":"Any (Web)","author":{"@type":"Person","name":"Freddrick Logan","url":"https://fredlogan.phd"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+</head>
+<body>
+<main id="demo-root" class="exec-main">
+  <h2 class="sr-only">Venture finance model</h2>
+  <p id="status" class="vfm-statusbar" role="status" aria-live="polite"></p>
+
+  <section class="vfm-panel" id="round" aria-labelledby="round-heading">
+    <h3 id="round-heading">Priced round</h3>
+    <p class="vfm-hint">SAFEs and the note convert first against today's fully diluted shares; the option-pool top-up is created pre-money; then the round prices at pre-money ÷ pre-round shares.</p>
+    <div class="vfm-fields">
+      <label>Pre-money valuation ($)<input type="number" id="r-pre" min="1" step="100000"></label>
+      <label>Investment ($)<input type="number" id="r-inv" min="0" step="100000"></label>
+      <label>Option-pool top-up (% post-money)<input type="number" id="r-pool" min="0" max="50" step="1"></label>
+      <label>Liquidation preference (×)<input type="number" id="r-mult" min="0" max="3" step="0.5"></label>
+    </div>
+    <label class="vfm-check"><input type="checkbox" id="r-part"> Participating preferred</label>
+    <p class="vfm-price" id="round-price" aria-live="polite"></p>
+  </section>
+
+  <section class="vfm-panel" aria-labelledby="cap-heading">
+    <h3 id="cap-heading">Cap table</h3>
+    <p class="vfm-hint">Today, and after conversions and the round. Edit share counts; blue rows are created by the round.</p>
+    <div class="vfm-scroll"><table class="vfm-table" id="captable"></table></div>
+    <div class="vfm-tools">
+      <button type="button" class="vfm-btn vfm-btn--primary" id="import-csv">Import cap table CSV</button>
+      <button type="button" class="vfm-btn" id="export-csv">Export post-round CSV</button>
+      <button type="button" class="vfm-btn" id="reset">Reset to sample</button>
+      <input type="file" id="file-csv" accept="text/csv,.csv" class="sr-only" tabindex="-1" aria-label="Cap table CSV file">
+    </div>
+  </section>
+
+  <section class="vfm-panel" aria-labelledby="conv-heading">
+    <h3 id="conv-heading">SAFE and note conversion</h3>
+    <p class="vfm-hint">Post-money SAFEs convert at cap ÷ pre-round shares or the discounted round price, whichever is lower; the note adds simple interest first.</p>
+    <div class="vfm-scroll"><table class="vfm-table" id="conversions"></table></div>
+  </section>
+
+  <div class="vfm-two">
+    <section class="vfm-panel" aria-labelledby="wf-heading">
+      <h3 id="wf-heading">Exit waterfall</h3>
+      <p class="vfm-hint">Preferences first, pro rata on a shortfall; non-participating preferred converts when that pays more.</p>
+      <div class="vfm-slider"><label for="exit">Exit value</label><output id="exit-val" for="exit"></output><input type="range" id="exit" min="0" max="100000000" step="500000"></div>
+      <div class="vfm-scroll"><table class="vfm-table" id="waterfall"></table></div>
+    </section>
+    <section class="vfm-panel" id="runway-panel" aria-labelledby="rw-heading">
+      <h3 id="rw-heading">Monte Carlo runway</h3>
+      <p class="vfm-hint">Monthly burn and revenue growth drawn with volatility; seeded so the run is reproducible.</p>
+      <div class="vfm-fields">
+        <label>Cash ($)<input type="number" id="w-cash" min="0" step="10000"></label>
+        <label>Monthly burn ($)<input type="number" id="w-burn" min="0" step="1000"></label>
+        <label>Burn volatility (%)<input type="number" id="w-burnvol" min="0" max="100" step="1"></label>
+        <label>Monthly revenue ($)<input type="number" id="w-rev" min="0" step="1000"></label>
+        <label>Revenue growth (%/mo)<input type="number" id="w-growth" min="-50" max="100" step="1"></label>
+        <label>Growth volatility (%)<input type="number" id="w-growthvol" min="0" max="100" step="1"></label>
+        <label>Horizon (months)<input type="number" id="w-horizon" min="1" max="120" step="1"></label>
+        <label>Trials<input type="number" id="w-trials" min="1" max="20000" step="100"></label>
+        <label>Seed<input type="number" id="w-seed" min="0" step="1"></label>
+      </div>
+      <div class="vfm-tools"><button type="button" class="vfm-btn vfm-btn--primary" id="run-runway">Run simulation</button></div>
+      <dl id="runway"></dl>
+      <div id="runway-chart"></div>
+    </section>
+  </div>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
