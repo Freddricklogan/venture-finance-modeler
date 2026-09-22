@@ -104,6 +104,7 @@ $('reset').addEventListener('click', () => { Object.assign(state, sample(), { ex
 
 /* -------------------------------------------------------------- shell */
 const shell = mountExecShell({
+  theme: 'midnight',
   title: 'Venture Finance Modeler',
   tagline: 'Cap table, SAFE and convertible-note conversion, priced-round dilution with a pre-money option pool, exit waterfall with liquidation preferences, and a seeded Monte Carlo runway — tested finance arithmetic, in the browser. Sample company; illustrative.',
   repo: REPO, pagesUrl: PAGES,
