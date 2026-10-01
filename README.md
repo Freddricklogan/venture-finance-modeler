@@ -139,7 +139,7 @@ npm run check      # lint → typecheck → validate → test → build
 **Verification — the numbers this repository actually produced:**
 
 ```bash
-npm test         # Test Files 5 passed (5) · Tests 31 passed (31)
+npm test         # Test Files 5 passed (5) · Tests 39 passed (31)
 npm run coverage # All files 100% statements · 90.15% branches
 npm run lint     # eslint (typed) — clean
 npm run typecheck# tsc --noEmit — clean
